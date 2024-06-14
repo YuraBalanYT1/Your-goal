@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Goal Tracker</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #f0f0f0;
+        }
+        .container {
+            text-align: center;
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            animation: fadeIn 1s ease-in-out;
+            margin: 20px;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        input[type="text"], input[type="number"] {
+            padding: 10px;
+            width: 200px;
+            margin-bottom: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            transition: border-color 0.3s;
+        }
+        input[type="text"]:focus, input[type="number"]:focus {
+            border-color: #4CAF50;
+        }
+        button {
+            padding: 10px 20px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+            margin-top: 10px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        .goal-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            margin-bottom: 10px;
+        }
+        .goal-item button {
+            background-color: #f44336;
+        }
+        .progress {
+            margin-top: 20px;
+            font-size: 18px;
+            opacity: 0;
+            animation: fadeIn 1s ease-in-out 0.5s forwards;
+        }
+        .goal-reached {
+            color: #4CAF50;
+            font-weight: bold;
+            animation: bounce 1s ease-in-out infinite;
+        }
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container" id="setup">
+        <h1>Set Your Goal</h1>
+        <input type="text" id="item" placeholder="Enter item name">
+        <input type="number" id="goal" placeholder="Enter goal amount">
+        <button onclick="setGoal()">Set Goal</button>
+    </div>
+    <div class="container" id="goalListContainer" style="display:none;">
+        <h1>Your Goals</h1>
+        <div id="goalList"></div>
+        <button onclick="newGoal()">New Goal</button>
+    </div>
+    <div class="container" id="tracker" style="display:none;">
+        <h1 id="itemName"></h1>
+        <h2 id="goalAmount"></h2>
+        <input type="number" id="amount" placeholder="Enter amount">
+        <button onclick="saveAmount()">Save</button>
+        <div class="progress" id="progress"></div>
+        <button onclick="removeGoal()">Remove Goal</button>
+    </div>
+    <script>
+        function setGoal() {
+            const item = document.getElementById('item').value;
+            const goal = parseFloat(document.getElementById('goal').value);
+            if (item && !isNaN(goal)) {
+                let goals = JSON.parse(localStorage.getItem('goals')) || [];
+                if (goals.length < 10) {
+                    goals.push({ item, goal, saved: 0 });
+                    localStorage.setItem('goals', JSON.stringify(goals));
+                    loadGoals();
+                    document.getElementById('setup').style.display = 'none';
+                    document.getElementById('goalListContainer').style.display = 'block';
+                } else {
+                    alert("You can only have up to 10 goals.");
+                }
+            }
+        }
+
+        function saveAmount() {
+            let amount = parseFloat(document.getElementById('amount').value);
+            if (!isNaN(amount)) {
+                let goals = JSON.parse(localStorage.getItem('goals')) || [];
+                const currentGoalIndex = localStorage.getItem('currentGoalIndex');
+                if (currentGoalIndex !== null) {
+                    goals[currentGoalIndex].saved += amount;
+                    localStorage.setItem('goals', JSON.stringify(goals));
+                    updateProgress(goals[currentGoalIndex]);
+                }
+            }
+        }
+
+        function removeGoal() {
+            const currentGoalIndex = localStorage.getItem('currentGoalIndex');
+            let goals = JSON.parse(localStorage.getItem('goals')) || [];
+            if (currentGoalIndex !== null && goals.length > 0) {
+                goals.splice(currentGoalIndex, 1);
+                localStorage.setItem('goals', JSON.stringify(goals));
+                localStorage.removeItem('currentGoalIndex');
+                document.getElementById('tracker').style.display = 'none';
+                document.getElementById('goalListContainer').style.display = 'block';
+                loadGoals();
+            }
+        }
+
+        function updateProgress(goal) {
+            const progressElement = document.getElementById('progress');
+            if (goal.saved >= goal.goal) {
+                progressElement.textContent = 'You have reached your goal!';
+                progressElement.classList.add('goal-reached');
+            } else {
+                progressElement.textContent = `You have: ${goal.saved} out of ${goal.goal}`;
+                progressElement.classList.remove('goal-reached');
+            }
+            progressElement.style.opacity = 1;
+        }
+
+        function loadGoals() {
+            const goals = JSON.parse(localStorage.getItem('goals')) || [];
+            const goalList = document.getElementById('goalList');
+            goalList.innerHTML = '';
+            goals.forEach((goal, index) => {
+                const goalItem = document.createElement('div');
+                goalItem.classList.add('goal-item');
+                goalItem.innerHTML = `
+                    <span>${goal.item} - ${goal.saved}/${goal.goal}</span>
+                    <button onclick="selectGoal(${index})">Select</button>
+                `;
+                goalList.appendChild(goalItem);
+            });
+            if (goals.length > 0) {
+                document.getElementById('goalListContainer').style.display = 'block';
+            } else {
+                document.getElementById('goalListContainer').style.display = 'none';
+            }
+        }
+
+        function selectGoal(index) {
+            localStorage.setItem('currentGoalIndex', index);
+            const goals = JSON.parse(localStorage.getItem('goals')) || [];
+            const selectedGoal = goals[index];
+            document.getElementById('itemName').textContent = `Saving for ${selectedGoal.item}`;
+            document.getElementById('goalAmount').textContent = `My Goal: ${selectedGoal.goal}`;
+            document.getElementById('goalListContainer').style.display = 'none';
+            document.getElementById('tracker').style.display = 'block';
+            updateProgress(selectedGoal);
+        }
+
+        function newGoal() {
+            document.getElementById('goalListContainer').style.display = 'none';
+            document.getElementById('setup').style.display = 'block';
+        }
+
+        window.onload = function() {
+            loadGoals();
+            const currentGoalIndex = localStorage.getItem('currentGoalIndex');
+            if (currentGoalIndex !== null) {
+                const goals = JSON.parse(localStorage.getItem('goals')) || [];
+                if (goals.length > 0 && currentGoalIndex < goals.length) {
+                    const selectedGoal = goals[currentGoalIndex];
+                    document.getElementById('itemName').textContent = `Saving for ${selectedGoal.item}`;
+                    document.getElementById('goalAmount').textContent = `My Goal: ${selectedGoal.goal}`;
+                    document.getElementById('setup').style.display = 'none';
+                    document.getElementById('tracker').style.display = 'block';
+                    updateProgress(selectedGoal);
+                }
+            }
+        }
+    </script>
+</body>
+</html>
